@@ -208,3 +208,5 @@ __marimo__/
 
 # custom
 *.pt
+/text-generation-webui-main
+*.gguf

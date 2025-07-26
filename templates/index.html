@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Live Detection + Narration</title>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  </head>
+  <body>
+    <h2>Phone Camera → Server Detection & Narration</h2>
+    <video id="video" width="320" height="240" autoplay playsinline></video>
+    <canvas id="canvas" width="320" height="240" style="display: none"></canvas>
+    <img id="output" width="320" height="240" />
+    <div
+      id="description"
+      style="margin-top: 8px; font-size: 1.1em; color: blue"
+    ></div>
+
+    <script>
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const output = document.getElementById("output");
+      const desc = document.getElementById("description");
+      const socket = io();
+
+      // send frames
+      navigator.mediaDevices
+        .getUserMedia({
+          video: {
+            facingMode: { exact: "environment" }, // throw if no rear cam
+          },
+        })
+        .catch(
+          (_) => navigator.mediaDevices.getUserMedia({ video: true }) // fallback
+        )
+        .then((stream) => {
+          video.srcObject = stream;
+          video.play();
+          video.addEventListener("play", () => {
+            setInterval(() => {
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const dataURL = canvas.toDataURL("image/jpeg", 0.7);
+              socket.emit("frame", { data: dataURL });
+            }, 100);
+          });
+        })
+        .catch((err) => alert("Camera error: " + err));
+
+      // receive annotated frame
+      socket.on("annotated_frame", (msg) => {
+        output.src = msg.data;
+      });
+
+      // receive narration
+      socket.on("narration", (msg) => {
+        desc.innerText = msg.text;
+        if (msg.audio) {
+          const audio = new Audio(msg.audio);
+          audio.play().catch((e) => console.warn("Audio play failed:", e));
+        }
+      });
+    </script>
+  </body>
+</html>
